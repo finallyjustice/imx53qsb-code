@@ -5,5 +5,5 @@ void bootmain(void)
 	iomuxc_init();
 	mxc_serial_init();
 
-	cprintf("Hello World %d\n", 2345);
+	cprintf("Hello World %d\n", 4567);
 }
