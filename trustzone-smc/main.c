@@ -6,21 +6,6 @@
 // register the secure monitor vector
 extern void init_secure_monitor();
 
-// code in TrustZone Normal World
-void normal_world()
-{
-	while(1)
-	{
-		cprintf("$$ Say hello in TrustZone Normal World!\n");
-		// transit to Secure Monitor
-		asm volatile("smc #0\n\t");	
-		//cprintf("Say hello in TrustZone Normal World!\n");
-		// trnasit to Secure Monitor
-		//asm volatile("smc #0\n\t") ;
-		//cprintf("Say hello again\n");
-	}
-}
-
 enum
 {
 	CSL0	= CSU_BASE_ADDR + 0x00,
@@ -91,28 +76,43 @@ void enable_hwfirewall(void)
 	*R32 CSL29 = 0x00ff00ff;
 	*R32 CSL30 = 0x00ff00ff;
 	*R32 CSL31 = 0x00ff00ff;
-} 
+}
+
+// code in TrustZone Normal World
+void normal_world()
+{
+	while(1)
+	{
+		cprintf("$$ Say hello in TrustZone ^^Normal^^ World!\n");
+		// transit to Secure Monitor (Dst: Secure World)
+		asm volatile("smc #0\n\t");	
+	}
+}
 
 void bootmain(void)
 {
 	// enable_hwfirewall allows printf in Normal World
 	enable_hwfirewall();
+
 	iomuxc_init();
 	mxc_serial_init();
 
-	cprintf("Test ARM TrustZone\n");
+	cprintf("Test ARM TrustZone on i.MX53 Quick Start Board.\n");
 
 	// register the TrustZone secure monitor vector
+	cprintf("Register the TrustZone Secure Monitor Vector.\n");
 	init_secure_monitor(normal_world);
 	cprintf("Secure Monitor Vector Registration Successfully!\n");
 
 	int i;
 	for(i=0; i<10; i++)
 	{
-		cprintf("## Say hello in TrustZone Secure World!\n");
-		// transit to Secure Monitor
+		cprintf("## Say hello in TrustZone ^^Secure^^ World! %d\n", i);
+		// transit to Secure Monitor (Dst: Normal World)
 		asm volatile("smc #0\n\t");
 	};
+
+	cprintf("Finish the TrustZone world-transition test! Congrat!!!!\n");
 
 	while(1);
 	return;
