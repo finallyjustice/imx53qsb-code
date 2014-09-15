@@ -11,10 +11,13 @@ void normal_world()
 {
 	while(1)
 	{
-		cprintf("Say hello in TrustZone Normal World!\n");
+		cprintf("$$ Say hello in TrustZone Normal World!\n");
+		// transit to Secure Monitor
+		asm volatile("smc #0\n\t");	
+		//cprintf("Say hello in TrustZone Normal World!\n");
 		// trnasit to Secure Monitor
-		asm volatile("smc #0\n\t") ;
-		cprintf("Say hello again\n");
+		//asm volatile("smc #0\n\t") ;
+		//cprintf("Say hello again\n");
 	}
 }
 
@@ -103,5 +106,14 @@ void bootmain(void)
 	init_secure_monitor(normal_world);
 	cprintf("Secure Monitor Vector Registration Successfully!\n");
 
+	int i;
+	for(i=0; i<10; i++)
+	{
+		cprintf("## Say hello in TrustZone Secure World!\n");
+		// transit to Secure Monitor
+		asm volatile("smc #0\n\t");
+	};
+
+	while(1);
 	return;
 }

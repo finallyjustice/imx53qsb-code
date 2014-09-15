@@ -16,10 +16,10 @@ SECTIONS
 	.bss : { *(.bss*) }
 	__bss_end = .;
 
-	. = 0xa7800000;
+	. = 0xa0000000;
 	.stack :
 	{
-		STACK_ADR = . ;
+		STACK_ADDR = . ;
 	}
 }
 

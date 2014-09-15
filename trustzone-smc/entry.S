@@ -104,6 +104,8 @@
 .equ Offset_SVC_Stack, Offset_UND_Stack + Len_UND_Stack
 .equ Offset_USR_Stack, Offset_SVC_Stack + Len_SVC_Stack
 
+.code 32
+
 # entry of the bare metal program
 .globl _start
 _start:
@@ -122,154 +124,37 @@ PAbortAddr:     .word PAbortHandler
 DAbortAddr:     .word DAbortHandler
 ReservedAddr:   .word 0
 IRQAddr:        .word IRQHandler
-FIQAddr:        .word FIQHandler
-	
-.macro setup_pll pll, freq
-		ldr r0, =\pll
-		adr r2, W_DP_\freq
-		bl setup_pll_func
-.endm
-
-.global lowlevel_init
-.align 4
-lowlevel_init:
-	mov r10, lr
-	ldr r0, =CCM_BASE_ADDR
-
-	/* Gate of clocks to the peripherals first */
-	ldr r1, =0x3FFFFFFF
-	str r1, [r0, #CLKCTL_CCGR0]
-	str r4, [r0, #CLKCTL_CCGR1]
-	str r4, [r0, #CLKCTL_CCGR2]
-	str r4, [r0, #CLKCTL_CCGR3]
-	str r4, [r0, #CLKCTL_CCGR7]
-	ldr r1, =0x00030000
-	str r1, [r0, #CLKCTL_CCGR4]
-	ldr r1, =0x00FFF030
-	str r1, [r0, #CLKCTL_CCGR5]
-	ldr r1, =0x0F00030F
-	str r1, [r0, #CLKCTL_CCGR6]
-
-	/* Switch ARM to step clock */
-	mov r1, #0x4
-	str r1, [r0, #CLKCTL_CCSR]
-
-	setup_pll PLL1_BASE_ADDR, 800
-
-	setup_pll PLL3_BASE_ADDR, 400	
-
-	/* Switch peripheral to PLL3 */
-	ldr r0, =CCM_BASE_ADDR
-	ldr r1, =0x00015154
-	str r1, [r0, #CLKCTL_CBCMR]
-	ldr r1, =0x02898945
-	str r1, [r0, #CLKCTL_CBCDR]
-	/* make sure change is effective */
-1:      ldr r1, [r0, #CLKCTL_CDHIPR]
-		cmp r1, #0x0
-		bne 1b
-
-	setup_pll PLL2_BASE_ADDR, 400
-
-	
-	/* Switch peripheral to PLL2 */
-	ldr r0, =CCM_BASE_ADDR
-	ldr r1, =0x00888945
-	str r1, [r0, #CLKCTL_CBCDR]
-
-	ldr r1, =0x00016154
-	str r1, [r0, #CLKCTL_CBCMR]
-
-	/*change uart clk parent to pll2*/
-	ldr r1, [r0, #CLKCTL_CSCMR1]
-	and r1, r1, #0xfcffffff
-	orr r1, r1, #0x01000000
-	str r1, [r0, #CLKCTL_CSCMR1]
-
-	/* make sure change is effective */
-1:      ldr r1, [r0, #CLKCTL_CDHIPR]
-		cmp r1, #0x0
-		bne 1b
-
-	setup_pll PLL3_BASE_ADDR, 216
-
-	setup_pll PLL4_BASE_ADDR, 455
-
-	/* Set the platform clock dividers */
-	ldr r0, =ARM_BASE_ADDR
-	ldr r1, =0x00000124
-	str r1, [r0, #0x14]
-
-	ldr r0, =CCM_BASE_ADDR
-	mov r1, #0
-	str r1, [r0, #CLKCTL_CACRR]
-
-	/* Switch ARM back to PLL 1. */
-	mov r1, #0x0
-	str r1, [r0, #CLKCTL_CCSR]
-	
-	/* make uart div=6 */
-	ldr r1, [r0, #CLKCTL_CSCDR1]
-	and r1, r1, #0xffffffc0
-	orr r1, r1, #0x0a
-	str r1, [r0, #CLKCTL_CSCDR1]
-
-	/* Restore the default values in the Gate registers */
-	ldr r1, =0xFFFFFFFF
-	str r1, [r0, #CLKCTL_CCGR0]
-	str r1, [r0, #CLKCTL_CCGR1]
-	str r1, [r0, #CLKCTL_CCGR2]
-	str r1, [r0, #CLKCTL_CCGR3]
-	str r1, [r0, #CLKCTL_CCGR4]
-	str r1, [r0, #CLKCTL_CCGR5]
-	str r1, [r0, #CLKCTL_CCGR6]
-	str r1, [r0, #CLKCTL_CCGR7]
-
-	mov r1, #0x00000
-	str r1, [r0, #CLKCTL_CCDR]
-
-	/* for cko - for ARM div by 8 */
-	mov r1, #0x000A0000
-	add r1, r1, #0x00000F0
-	str r1, [r0, #CLKCTL_CCOSR]
-	
-	mov pc, r10
+FIQAddr:        .word FIQHandler	
 
 # reset handler
 .global reset
 .align 4
 reset:
 	bl lowlevel_init	
-	ldr sp, =(0xf801ff20)  @works even disabled
+	ldr sp, =STACK_ADDR  @works even disabled
+
+	ldr r0, =STACK_ADDR
+
+	cps #Mode_MON
+	ldr sp, =STACK_ADDR
+
+	msr cpsr_c, #Mode_FIQ | I_Bit | F_Bit /* Disable interrupts*/
+	sub sp, r0, #Offset_FIQ_Stack
+ 
+	msr cpsr_c, #Mode_IRQ | I_Bit | F_Bit /* Disable interrupts */
+	sub     sp, r0, #Offset_IRQ_Stack
+	 
+	msr cpsr_c, #Mode_ABT | I_Bit | F_Bit /* Disable interrupts */
+	sub sp, r0, #Offset_ABT_Stack
+	
+	msr cpsr_c, #Mode_UND | I_Bit | F_Bit  
+	sub sp, r0, #Offset_UND_Stack   
+	
+	msr cpsr_c, #Mode_SVC | I_Bit | F_Bit /* Disable interrupts */
+	sub sp, r0, #Offset_SVC_Stack	
+
 	bl bootmain
 	b .
-
-setup_pll_func:
-	ldr r1, =0x00001232
-	str r1, [r0, #PLL_DP_CTL] /* Set DPLL ON (set UPEN bit): BRMO=1 */
-	mov r1, #0x2
-	str r1, [r0, #PLL_DP_CONFIG] /* Enable auto-restart AREN bit */
-
-	ldr r1, [r2, #W_DP_OP]
-	str r1, [r0, #PLL_DP_OP]
-	str r1, [r0, #PLL_DP_HFS_OP]
-
-	ldr r1, [r2, #W_DP_MFD]
-	str r1, [r0, #PLL_DP_MFD]
-	str r1, [r0, #PLL_DP_HFS_MFD]
-
-	ldr r1, [r2, #W_DP_MFN]
-	str r1, [r0, #PLL_DP_MFN]
-	str r1, [r0, #PLL_DP_HFS_MFN]
-
-	ldr r1, =0x00001232
-	str r1, [r0, #PLL_DP_CTL]
-	1:  ldr r1, [r0, #PLL_DP_CTL]
-		ands r1, r1, #0x1
-		beq 1b
-
-	/* r10 saved upper lr */
-	mov pc, lr
 
 .global monitor
 .align 5
@@ -277,7 +162,7 @@ monitor:
 	@ Monitor
 	nop @ Reset		 - not used by Monitor
 	nop @ Undef      - not used by Monitor
-	B   smc_handler
+	b   smc_handler
 	nop @ Prefetch   - can by used by Monitor
 	nop @ Data abort - can by used by Monitor
 	nop @ RESERVED
@@ -426,6 +311,143 @@ init_secure_monitor:
  
 	movs pc, lr
 
+.macro setup_pll pll, freq
+		ldr r0, =\pll
+		adr r2, W_DP_\freq
+		bl setup_pll_func
+.endm
+
+.global lowlevel_init
+.align 4
+lowlevel_init:
+	mov r10, lr
+	ldr r0, =CCM_BASE_ADDR
+
+	/* Gate of clocks to the peripherals first */
+	ldr r1, =0x3FFFFFFF
+	str r1, [r0, #CLKCTL_CCGR0]
+	str r4, [r0, #CLKCTL_CCGR1]
+	str r4, [r0, #CLKCTL_CCGR2]
+	str r4, [r0, #CLKCTL_CCGR3]
+	str r4, [r0, #CLKCTL_CCGR7]
+	ldr r1, =0x00030000
+	str r1, [r0, #CLKCTL_CCGR4]
+	ldr r1, =0x00FFF030
+	str r1, [r0, #CLKCTL_CCGR5]
+	ldr r1, =0x0F00030F
+	str r1, [r0, #CLKCTL_CCGR6]
+
+	/* Switch ARM to step clock */
+	mov r1, #0x4
+	str r1, [r0, #CLKCTL_CCSR]
+
+	setup_pll PLL1_BASE_ADDR, 800
+
+	setup_pll PLL3_BASE_ADDR, 400	
+
+	/* Switch peripheral to PLL3 */
+	ldr r0, =CCM_BASE_ADDR
+	ldr r1, =0x00015154
+	str r1, [r0, #CLKCTL_CBCMR]
+	ldr r1, =0x02898945
+	str r1, [r0, #CLKCTL_CBCDR]
+	/* make sure change is effective */
+1:      ldr r1, [r0, #CLKCTL_CDHIPR]
+		cmp r1, #0x0
+		bne 1b
+
+	setup_pll PLL2_BASE_ADDR, 400
+
+	
+	/* Switch peripheral to PLL2 */
+	ldr r0, =CCM_BASE_ADDR
+	ldr r1, =0x00888945
+	str r1, [r0, #CLKCTL_CBCDR]
+
+	ldr r1, =0x00016154
+	str r1, [r0, #CLKCTL_CBCMR]
+
+	/*change uart clk parent to pll2*/
+	ldr r1, [r0, #CLKCTL_CSCMR1]
+	and r1, r1, #0xfcffffff
+	orr r1, r1, #0x01000000
+	str r1, [r0, #CLKCTL_CSCMR1]
+
+	/* make sure change is effective */
+1:      ldr r1, [r0, #CLKCTL_CDHIPR]
+		cmp r1, #0x0
+		bne 1b
+
+	setup_pll PLL3_BASE_ADDR, 216
+
+	setup_pll PLL4_BASE_ADDR, 455
+
+	/* Set the platform clock dividers */
+	ldr r0, =ARM_BASE_ADDR
+	ldr r1, =0x00000124
+	str r1, [r0, #0x14]
+
+	ldr r0, =CCM_BASE_ADDR
+	mov r1, #0
+	str r1, [r0, #CLKCTL_CACRR]
+
+	/* Switch ARM back to PLL 1. */
+	mov r1, #0x0
+	str r1, [r0, #CLKCTL_CCSR]
+	
+	/* make uart div=6 */
+	ldr r1, [r0, #CLKCTL_CSCDR1]
+	and r1, r1, #0xffffffc0
+	orr r1, r1, #0x0a
+	str r1, [r0, #CLKCTL_CSCDR1]
+
+	/* Restore the default values in the Gate registers */
+	ldr r1, =0xFFFFFFFF
+	str r1, [r0, #CLKCTL_CCGR0]
+	str r1, [r0, #CLKCTL_CCGR1]
+	str r1, [r0, #CLKCTL_CCGR2]
+	str r1, [r0, #CLKCTL_CCGR3]
+	str r1, [r0, #CLKCTL_CCGR4]
+	str r1, [r0, #CLKCTL_CCGR5]
+	str r1, [r0, #CLKCTL_CCGR6]
+	str r1, [r0, #CLKCTL_CCGR7]
+
+	mov r1, #0x00000
+	str r1, [r0, #CLKCTL_CCDR]
+
+	/* for cko - for ARM div by 8 */
+	mov r1, #0x000A0000
+	add r1, r1, #0x00000F0
+	str r1, [r0, #CLKCTL_CCOSR]
+	
+	mov pc, r10
+
+setup_pll_func:
+	ldr r1, =0x00001232
+	str r1, [r0, #PLL_DP_CTL] /* Set DPLL ON (set UPEN bit): BRMO=1 */
+	mov r1, #0x2
+	str r1, [r0, #PLL_DP_CONFIG] /* Enable auto-restart AREN bit */
+
+	ldr r1, [r2, #W_DP_OP]
+	str r1, [r0, #PLL_DP_OP]
+	str r1, [r0, #PLL_DP_HFS_OP]
+
+	ldr r1, [r2, #W_DP_MFD]
+	str r1, [r0, #PLL_DP_MFD]
+	str r1, [r0, #PLL_DP_HFS_MFD]
+
+	ldr r1, [r2, #W_DP_MFN]
+	str r1, [r0, #PLL_DP_MFN]
+	str r1, [r0, #PLL_DP_HFS_MFN]
+
+	ldr r1, =0x00001232
+	str r1, [r0, #PLL_DP_CTL]
+	1:  ldr r1, [r0, #PLL_DP_CTL]
+		ands r1, r1, #0x1
+		beq 1b
+
+	/* r10 saved upper lr */
+	mov pc, lr
 
 W_DP_216:       .word DP_OP_216
 				.word DP_MFD_216
