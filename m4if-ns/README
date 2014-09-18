@@ -1,0 +1,10 @@
+This is the bare metal program running on i.MX53 QSB to test the M4IF.
+
+Unless we comment the following code, we would not be able to read secure data in normal world.
+
+*R32 M4IF_WMIS0   = 0x80000000;  // enable secure memory
+
+If you want to use your own mkimage in your u-boot code, please change MKIMAGE in Makefile.
+
+Contact: Dongli Zhang
+Email: dongli.zhang0129@gmail.com
