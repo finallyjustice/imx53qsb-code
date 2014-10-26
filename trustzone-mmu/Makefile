@@ -20,6 +20,7 @@ OBJS = \
 	secure_mxc_serial.o \
 	normal_entry.o \
 	normal_start.o \
+	early_mxc_serial.o \
 	normal_main.o \
 	mxc_serial.o
 

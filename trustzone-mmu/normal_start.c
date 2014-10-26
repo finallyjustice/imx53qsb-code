@@ -13,7 +13,7 @@ void norm_uprint(char *s)
 	int i = 0;
 	while(s[i])
 	{
-		secure_mxc_serial_putc(s[i]);
+		early_mxc_serial_putc(s[i]);
 		i++;
 	}
 }
