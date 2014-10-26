@@ -11,12 +11,13 @@ MKIMAGE = mkimage
 CFLAGS = -Wall -O0 -nostdlib -nostartfiles -ffreestanding -march=armv7-a
 ASFLAGS = -Wall -march=armv7-a 
 LDFLAGS = -L . -lgcc
+#LDFLAGS = 
 
 OBJS = \
 	start.o \
 	early_mxc_serial.o \
-	mxc_serial.o \
-	main.o
+	main.o \
+	mxc_serial.o 
 
 all : kernel.img
 
@@ -29,7 +30,7 @@ kernel.img : kernel.ld entry.o $(OBJS)
 	$(OBJDUMP) -t kernel.elf | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernel.sym
 	$(OBJCOPY) kernel.elf -O binary kernel.img
 	#$(MKIMAGE) -n imximage.cfg -T imximage -e 0x97800000 -d kernel.img kernel.imx
-	$(MKIMAGE) -n imximage.cfg -T imximage -e 0x70008000 -d kernel.img kernel.imx
+	$(MKIMAGE) -n imximage.cfg -T imximage -e 0x80010000 -d kernel.img kernel.imx
 
 clean :
 	rm -f *.o *.elf *.asm *sym *.img *.imx 

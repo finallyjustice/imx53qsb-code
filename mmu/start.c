@@ -3,6 +3,7 @@
 #include "mmu.h"
 #include "memlayout.h"
 #include "imx53qsb.h"
+#include "config.h"
 
 extern void kmain(void);
 extern void jump_stack();
@@ -67,8 +68,8 @@ void _flush_all (void)
 	asm("MCR p15, 0, %[r], c8, c7, 0" : :[r]"r" (val):);
 
 	// invalid entire data and instruction cache
-	asm ("MCR p15,0,%[r],c7,c10,0": :[r]"r" (val):);
-	asm ("MCR p15,0,%[r],c7,c11,0": :[r]"r" (val):);
+	//asm ("MCR p15,0,%[r],c7,c10,0": :[r]"r" (val):);
+	//asm ("MCR p15,0,%[r],c7,c11,0": :[r]"r" (val):);
 }
 
 void load_pgtlb (uint32* kern_pgtbl, uint32* user_pgtbl)
@@ -109,15 +110,24 @@ void bootmain(void)
 
 	uprint("Hello World!\n");
 
-	// double map physical memory, required to enable paging
-	set_bootpgtbl(PHYSBASE, PHYSBASE, INIT_KERNMAP, 0);
-	set_bootpgtbl(KERNBASE, PHYSBASE, INIT_KERNMAP, 0);
+	set_bootpgtbl(PHY_START, PHY_START, INIT_KERN_SZ, 0);
+	//set_bootpgtbl(KERNBASE+PHY_START, PHY_START, INIT_KERN_SZ, 0);
+	set_bootpgtbl(0xc0000000, PHY_START, INIT_KERN_SZ, 0);
+
+	set_bootpgtbl(DEVBASE1, DEVBASE1, DEV_MEM_SZ, 1); // V, P, SZ, ISDEV: add to prevent crash     on _puts
+	set_bootpgtbl(0x90000000, DEVBASE1, DEV_MEM_SZ, 1); // V, P, SZ, ISDEV
+	//set_bootpgtbl(KERNBASE+DEVBASE1, DEVBASE1, DEV_MEM_SZ, 1); // V, P, SZ, ISDEV
+	set_bootpgtbl(0xa0000000, DEVBASE2, DEV_MEM_SZ, 1); // V, P, SZ, ISDEV
+	//set_bootpgtbl(KERNBASE+DEVBASE2, DEVBASE2, DEV_MEM_SZ, 1); // V, P, SZ, ISDEV
 
 	// map the device memory
-	set_bootpgtbl(KERNBASE+DEVBASE, DEVBASE, DEV_MEM_SZ, 1);
-
+	//set_bootpgtbl(KERNBASE+DEVBASE, DEVBASE, DEV_MEM_SZ, 1);
+	uprint("finish mapping\n");
 	load_pgtlb (kernel_pgtbl, user_pgtbl);
 	jump_stack ();  // move the stack to high memory
+	 __REG(_P2V(UART_PHYS + UTXD)) = 'Q';
+	 __REG(UART_PHYS + UTXD) = 'P';
+	 __REG(_P2V(UART_PHYS + UTXD)) = 'O';
 
 	kmain();
 }

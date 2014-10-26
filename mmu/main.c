@@ -15,7 +15,9 @@ void test_putc(const char c)
 
 void kmain(void)
 {
-	//cprintf("Hello New Kernel!\n");
-	test_putc('A');
+	__REG(_P2V(UART_PHYS + UTXD)) = 'B';
+	__REG(UART_PHYS + UTXD) = 'A';
+	test_putc('X');
+	cprintf("\nHella New Kernel! %d\n", 100);
 	while(1);
 }

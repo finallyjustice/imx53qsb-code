@@ -1,13 +1,12 @@
-/*OUTPUT_FORMAT("elf32-littlearm", "elf32-littlearm", "elf32-littlearm")*/
-/*OUTPUT_ARCH(arm)*/
+OUTPUT_FORMAT("elf32-littlearm")
+OUTPUT_ARCH(arm)
 ENTRY(_start)
 
 ENTRY_SVC_STACK_SIZE = 0x1000;
 
 SECTIONS
 {
-	/* . = 0x97800000; */
-	. = 0x70008000;
+	. = 0x80010000;
 	.start_sec : {
 		entry.o(.text)
 		start.o(.text .text.*)
@@ -20,6 +19,8 @@ SECTIONS
 		entry.o(.data .data.*)
 		start.o(.data .data.*)
 		early_mxc_serial.o(.data .data.*)
+
+		PROVIDE(edata_entry = .);
 
 		entry.o(.bss .bss.* COMMON)
 		start.o(.bss .bss.* COMMON)
@@ -34,18 +35,20 @@ SECTIONS
 		/* define the kernel page table, must be 16K and 16K-aligned*/
 		. = ALIGN(0x4000);
 		PROVIDE (_kernel_pgtbl = .);
-		. += 0x4000;
+		. += 0x8000;
 
 		/* we also need a user page table*/
 		PROVIDE (_user_pgtbl = .);
-		. += 0x1000;
+		. += 0x2000;
+
+		PROVIDE(end_entry = .);
 	}
 
 	/*the kernel executes at the higher 2GB address space, but loaded
 	  at the lower memory (0x20000)*/
-	. = 0x80020000;
+	. = 0xC0020000;
 	
-	.text : AT(0x70020000){
+	.text : AT(0x80020000){
 		*(.text .text.* .gnu.linkonce.t.*)
 	}
 
