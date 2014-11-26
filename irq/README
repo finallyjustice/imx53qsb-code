@@ -1,0 +1,7 @@
+This is the bare metal program running on i.MX53 QSB with serial based printf.
+It is used to test the vector table.
+
+If you want to use your own mkimage in your u-boot code, please change MKIMAGE in Makefile.
+
+Contact: Dongli Zhang
+Email: dongli.zhang0129@gmail.com
